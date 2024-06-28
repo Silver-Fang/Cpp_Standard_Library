@@ -28,10 +28,6 @@
 #define __GLIBC_INTERNAL_STARTING_HEADER_IMPLEMENTATION
 #include <bits/libc-header-start.h>
 #include <sys/cdefs.h>
-
-#define __need_size_t
-#define __need_wchar_t
-#define __need_NULL
 #include <stddef.h>
 
 #define __need___va_list
@@ -47,6 +43,8 @@ typedef __gnuc_va_list va_list;
 #  include <stdarg.h>
 # endif
 #endif
+
+#include <bits/types/mbstate_t.h>
 
 /* Tell the caller that we provide correct C++ prototypes.  */
 #if defined __cplusplus && __GNUC_PREREQ (4, 4)

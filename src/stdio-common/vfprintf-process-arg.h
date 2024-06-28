@@ -1,4 +1,3 @@
-#ifdef ARDUINO_ARCH_AVR
 /* Argument-processing fragment for vfprintf.
    Copyright (C) 1991-2024 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
@@ -506,4 +505,3 @@ LABEL (form_wcharacter):
   break;
 #endif /* !COMPILE_WPRINTF */
 }
-#endif

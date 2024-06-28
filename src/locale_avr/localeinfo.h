@@ -22,7 +22,11 @@
 #include <stddef.h>
 #include <langinfo.h>
 #include <limits.h>
+#include <locale.h>
+#include <time.h>
 #include <stdint.h>
+#include <sys/types.h>
+#include <locale_avr/bits/types/locale_t.h>
 
 /* Magic number at the beginning of a locale data file for CATEGORY.  */
 #define	LIMAGIC(category) \
@@ -45,6 +49,7 @@ struct __locale_data
 {
   const char *name;
   const char *filedata;		/* Region mapping the file data.  */
+  off_t filesize;		/* Size of the file (and the region).  */
   enum				/* Flavor of storage used for those.  */
   {
     ld_malloced,		/* Both are malloc'd.  */
@@ -69,6 +74,7 @@ struct __locale_data
   unsigned int nstrings;	/* Number of strings below.  */
   union locale_data_value
   {
+    const uint32_t *wstr;
     const char *string;
     unsigned int word;		/* Note endian issues vs 64-bit pointers.  */
   }
@@ -126,6 +132,10 @@ enum value_type
 /* Structure to access `era' information from LC_TIME.  */
 struct era_entry
 {
+  uint32_t direction;		/* Contains '+' or '-'.  */
+  int32_t offset;
+  int32_t start_date[3];
+  int32_t stop_date[3];
   const char *era_name;
   const char *era_format;
   const wchar_t *era_wname;
@@ -190,6 +200,30 @@ enum
    accessed using _nl_category_names.  */
 #define CATNAMEMF(line) CATNAMEMF1 (line)
 #define CATNAMEMF1(line) str##line
+extern const struct catnamestr_t
+{
+#define DEFINE_CATEGORY(category, category_name, items, a) \
+  char CATNAMEMF (__LINE__)[sizeof (category_name)];
+#undef DEFINE_CATEGORY
+} _nl_category_names attribute_hidden;
+
+/* Name of the standard locales.  */
+extern const char _nl_C_name[] attribute_hidden;
+extern const char _nl_POSIX_name[] attribute_hidden;
+
+/* The standard codeset.  */
+extern const char _nl_C_codeset[] attribute_hidden;
+
+/* This is the internal locale_t object that holds the global locale
+   controlled by calls to setlocale.  A thread's TSD locale pointer
+   points to this when `uselocale (LC_GLOBAL_LOCALE)' is in effect.  */
+extern struct __locale_struct _nl_global_locale attribute_hidden;
+
+/* This fetches the thread-local locale_t pointer, either one set with
+   uselocale or &_nl_global_locale.  */
+#define _NL_CURRENT_LOCALE	(__libc_tsd_get (locale_t, LOCALE))
+#include <libc-tsd.h>
+__libc_tsd_define (extern, locale_t, LOCALE)
 
 
 /* For static linking it is desireable to avoid always linking in the code
@@ -214,6 +248,7 @@ enum
 #define DEFINE_CATEGORY(category, category_name, items, a) \
 extern __thread struct __locale_data *const *_nl_current_##category \
   attribute_hidden attribute_tls_model_ie;
+#include "categories.def"
 #undef	DEFINE_CATEGORY
 
 /* Return a pointer to the current `struct __locale_data' for CATEGORY.  */
@@ -272,4 +307,112 @@ extern __thread struct __locale_data *const *_nl_current_##category \
   /* No per-category variable here. */
 
 #endif
+
+/* Extract CATEGORY locale's string for ITEM.  */
+static inline const char *
+_nl_lookup (locale_t l, int category, int item)
+{
+  return l->__locales[category]->values[_NL_ITEM_INDEX (item)].string;
+}
+
+/* Extract CATEGORY locale's wide string for ITEM.  */
+static inline const wchar_t *
+_nl_lookup_wstr (locale_t l, int category, int item)
+{
+  return (wchar_t *) l->__locales[category]
+    ->values[_NL_ITEM_INDEX (item)].wstr;
+}
+
+/* Extract the CATEGORY locale's word for ITEM.  */
+static inline uint32_t
+_nl_lookup_word (locale_t l, int category, int item)
+{
+  return l->__locales[category]->values[_NL_ITEM_INDEX (item)].word;
+}
+
+/* Default search path if no LOCPATH environment variable.  */
+extern const char _nl_default_locale_path[] attribute_hidden;
+
+/* Load the locale data for CATEGORY from the file specified by *NAME.
+   If *NAME is "", use environment variables as specified by POSIX, and
+   fill in *NAME with the actual name used.  If LOCALE_PATH is not null,
+   those directories are searched for the locale files.  If it's null,
+   the locale archive is checked first and then _nl_default_locale_path
+   is searched for locale files.  */
+extern struct __locale_data *_nl_find_locale (const char *locale_path,
+					      size_t locale_path_len,
+					      int category, const char **name)
+     attribute_hidden;
+
+/* Try to load the file described by FILE.  */
+extern void _nl_load_locale (struct loaded_l10nfile *file, int category)
+     attribute_hidden;
+
+/* Free all resource.  */
+extern void _nl_unload_locale (int category, struct __locale_data *locale)
+  attribute_hidden;
+
+/* Free the locale and give back all memory if the usage count is one.  */
+extern void _nl_remove_locale (int locale, struct __locale_data *data)
+     attribute_hidden;
+
+/* Find the locale *NAMEP in the locale archive, and return the
+   internalized data structure for its CATEGORY data.  If this locale has
+   already been loaded from the archive, just returns the existing data
+   structure.  If successful, sets *NAMEP to point directly into the mapped
+   archive string table; that way, the next call can short-circuit strcmp.  */
+extern struct __locale_data *_nl_load_locale_from_archive (int category,
+							   const char **namep)
+     attribute_hidden;
+
+/* Subroutine of setlocale's free resource.  */
+extern void _nl_archive_subfreeres (void) attribute_hidden;
+
+/* Subroutine of gconv-db's free resource.  */
+extern void _nl_locale_subfreeres (void) attribute_hidden;
+
+/* Validate the contents of a locale file and set up the in-core
+   data structure to point into the data.  This leaves the `alloc'
+   and `name' fields uninitialized, for the caller to fill in.
+   If any bogons are detected in the data, this will refuse to
+   intern it, and return a null pointer instead.  */
+extern struct __locale_data *_nl_intern_locale_data (int category,
+						     const void *data,
+						     size_t datasize)
+     attribute_hidden;
+
+
+/* Return `era' entry which corresponds to TP.  Used in strftime.  */
+extern struct era_entry *_nl_get_era_entry (const struct tm *tp,
+					    struct __locale_data *lc_time)
+     attribute_hidden;
+
+/* Return `era' cnt'th entry .  Used in strptime.  */
+extern struct era_entry *_nl_select_era_entry (int cnt,
+					       struct __locale_data *lc_time)
+	  attribute_hidden;
+
+/* Return `alt_digit' which corresponds to NUMBER.  Used in strftime.  */
+extern const char *_nl_get_alt_digit (unsigned int number,
+				      struct __locale_data *lc_time)
+	  attribute_hidden;
+
+/* Similar, but now for wide characters.  */
+extern const wchar_t *_nl_get_walt_digit (unsigned int number,
+					  struct __locale_data *lc_time)
+     attribute_hidden;
+
+/* Parse string as alternative digit and return numeric value.  */
+extern int _nl_parse_alt_digit (const char **strp,
+				struct __locale_data *lc_time)
+     attribute_hidden;
+
+/* Postload processing.  */
+extern void _nl_postload_ctype (void);
+
+/* Deallocate category-specific data.  Used in _nl_unload_locale.  */
+extern void _nl_cleanup_ctype (struct __locale_data *) attribute_hidden;
+extern void _nl_cleanup_time (struct __locale_data *) attribute_hidden;
+
+
 #endif	/* localeinfo.h */

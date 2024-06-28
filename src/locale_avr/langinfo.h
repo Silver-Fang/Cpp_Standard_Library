@@ -18,7 +18,8 @@
 
 #ifndef _LANGINFO_H
 #define	_LANGINFO_H 1
-
+#include <features.h>
+#include <bits/locale.h>	/* Define the __LC_* category names.  */
 
 __BEGIN_DECLS
 
@@ -644,22 +645,6 @@ enum
 						  _NL_ITEM_INDEX (-1))
 #ifdef __USE_GNU
 # define NL_LOCALE_NAME(category)	_NL_LOCALE_NAME (category)
-#endif
-
-
-/* Return the current locale's value for ITEM.
-   If ITEM is invalid, an empty string is returned.
-
-   The string returned will not change until `setlocale' is called;
-   it is usually in read-only memory and cannot be modified.  */
-
-extern char *nl_langinfo (nl_item __item) __THROW;
-
-
-#ifdef __USE_XOPEN2K8
-
-/* Just like nl_langinfo but get the information from the locale object L.  */
-extern char *nl_langinfo_l (nl_item __item, locale_t __l);
 #endif
 
 __END_DECLS

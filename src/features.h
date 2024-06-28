@@ -1,4 +1,5 @@
 #pragma once
+#include <libc-symbols.h>
 #define __STDC_VERSION__ 201112L
 #ifdef VSCODE
 #undef __STRICT_ANSI__

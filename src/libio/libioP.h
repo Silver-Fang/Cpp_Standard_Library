@@ -41,6 +41,8 @@
 
 #include <math_ldbl_opt.h>
 
+#include <stdio.h>
+
 #define _IO_seek_set 0
 #define _IO_seek_cur 1
 #define _IO_seek_end 2

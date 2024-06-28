@@ -7,6 +7,7 @@
 #endif
 
 #include <stdio-common/printf.h>
+#include <libc-symbols.h>
 
 # ifndef _ISOMAC
 

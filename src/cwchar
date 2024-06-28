@@ -17,8 +17,6 @@
 #pragma once
 #ifdef ARDUINO_ARCH_AVR
 #include <wchar.h>
-#define __need_wint_t
-#define __need_size_t
 #include <stddef.h>
 namespace std
 {
