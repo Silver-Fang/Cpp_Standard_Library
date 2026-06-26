@@ -40,6 +40,5 @@ typedef int _Atomic_word;
 
 #endif
 #else
-#include "../Cpp_Standard_Library.h"
 #include_next <bits/atomic_word.h>
 #endif

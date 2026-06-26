@@ -84,6 +84,5 @@ namespace std
 }
 #pragma GCC visibility pop
 #else
-#include "ext/atomicity.h"
 #include_next <locale>
 #endif

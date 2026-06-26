@@ -51,11 +51,17 @@ namespace std
 		/// Whether all instances of the allocator type compare equal.
 		using is_always_equal = true_type;
 
-		template <typename _Up>
-		using rebind_alloc = allocator<_Up>;
 #ifdef ARDUINO_ARCH_AVR
 		template <typename _Up>
+		using rebind_alloc = allocator<_Up>;
+		template <typename _Up>
 		using rebind_traits = allocator_traits<allocator<_Up>>;
+#endif
+#ifdef ARDUINO_ARCH_SAM
+      template<typename _Up>
+        using rebind_alloc = typename __alloctr_rebind<allocator<_Tp>, _Up>::__type;
+		template <typename _Up>
+		using rebind_traits = allocator_traits<rebind_alloc<_Up>>;
 #endif
 		/**
 		 *  @brief  Allocate memory.
@@ -284,21 +290,6 @@ namespace std
 			return __rhs;
 		}
 	};
-#endif
-#ifdef ARDUINO_ARCH_SAM
-	// 绕过编译器bug
-	template <typename AllocatorTraits, typename Up, typename = void>
-	struct rebind_traits_s
-	{
-		using type = allocator_traits<allocator<Up>>;
-	};
-	template <typename AllocatorTraits, typename Up>
-	struct rebind_traits_s<AllocatorTraits, Up, std::void_t<typename AllocatorTraits::template rebind_traits<Up>>>
-	{
-		using type = typename AllocatorTraits::template rebind_traits<Up>;
-	};
-	template <typename AllocatorTraits, typename Up>
-	using rebind_traits = typename rebind_traits_s<AllocatorTraits, Up>::type;
 #endif
 #endif
 }
